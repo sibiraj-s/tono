@@ -68,11 +68,8 @@ class FadeGainProcessor(
     }
 
     // A flush restarts the stream (Transformer never seeks inside our clip), so the fade
-    // position starts over too. Both overloads exist in Media3; either may be called.
-    override fun onFlush() {
-        frame = 0
-    }
-
+    // position starts over too. Every flush in Media3 1.11 arrives here (the no-argument
+    // onFlush() is deprecated and only called from the default of this overload).
     override fun onFlush(streamMetadata: androidx.media3.common.audio.AudioProcessor.StreamMetadata) {
         frame = 0
     }
