@@ -1,9 +1,12 @@
-# Runs the unit tests on every push to a branch (tags are handled by the release workflow).
+# Runs the unit tests on pushes to master and on pull requests into it (including the release PR,
+# whose required "test" check comes from the pull_request run).
 name: Tests
 
 on:
   push:
-    branches: ["**"]
+    branches: [master]
+  pull_request:
+    branches: [master]
   workflow_dispatch:
 
 permissions:
