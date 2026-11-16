@@ -37,4 +37,8 @@ your browser or file manager.
 Open the project in Android Studio (with *Android SDK Platform 37* installed), or run
 `./gradlew installDebug` with a phone connected. `./gradlew test` runs the unit tests.
 
+Dependencies are checked against the checksums in `gradle/verification-metadata.xml`. After changing a
+version, refresh them with
+`./gradlew --write-verification-metadata sha256 :app:assembleRelease :app:assembleDebug :app:testDebugUnitTest`.
+
 Use it for personal tones from music you have the right to use.

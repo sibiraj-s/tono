@@ -13,7 +13,7 @@ newpipeExtractor = "v0.27.1"
 desugarJdkLibs = "2.1.5"
 junit = "4.13.2"
 coil = "3.6.3"
-work = "2.11.2"
+work = "2.12.0"
 zxing = "3.5.4"
 
 [libraries]
