@@ -30,7 +30,7 @@ jobs:
       - uses: android-actions/setup-android@v4
 
       - name: Install the Android SDK platform
-        run: sdkmanager --install "platforms;android-37" "build-tools;36.0.0" > /dev/null
+        run: sdkmanager --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
 
       - name: Run unit tests
         run: ./gradlew :app:testDebugUnitTest
