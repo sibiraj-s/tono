@@ -6,8 +6,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
-// The release workflow passes the tag's version (-Ptono.version=0.3.0); local builds use the default.
-val appVersion = (findProperty("tono.version") as String?)?.removePrefix("v") ?: "0.3.0"
+// The release workflow passes the tag's version (-Ptono.version=0.1.0); local builds use the default.
+val appVersion = (findProperty("tono.version") as String?)?.removePrefix("v") ?: "0.1.0"
 // 1.2.3 -> 10203, so every newer version installs over the last one.
 val appVersionCode = appVersion.split(".").map { part -> part.takeWhile(Char::isDigit).ifEmpty { "0" }.toInt() }
     .let { p -> (p + listOf(0, 0, 0)).take(3) }
