@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Tono" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/tono_bg</item>
+        <item name="android:windowSplashScreenBackground">@color/tono_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_waveform</item>
+        <item name="android:windowSplashScreenAnimationDuration">1000</item>
+    </style>
+</resources>
