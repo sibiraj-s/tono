@@ -13,10 +13,16 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import app.tono.ui.components.QrImage
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +42,7 @@ import app.tono.ui.components.SectionHeader
 import app.tono.ui.components.TonoIcon
 import app.tono.ui.theme.ThemeMode
 import app.tono.ui.theme.Tono
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(theme: ThemeMode, onTheme: (ThemeMode) -> Unit, onOpenFilters: () -> Unit, updates: UpdateViewModel) {
@@ -78,6 +85,8 @@ fun SettingsScreen(theme: ThemeMode, onTheme: (ThemeMode) -> Unit, onOpenFilters
 
         UpdatesSection(updates)
 
+        ShareSection()
+
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SectionHeader("About", Modifier.padding(start = 4.dp))
             Text(
@@ -109,3 +118,74 @@ private fun LinkRow(title: String, hint: String, onClick: () -> Unit) {
         TonoIcon(R.drawable.ic_arrow_right, tint = c.muted, size = 18.dp)
     }
 }
+
+@Composable
+private fun ShareSection() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val linkIntent = remember { ShareApp.linkIntent(context.container.updates.repo) }
+    val downloadUrl = remember { ShareApp.downloadUrl(context.container.updates.repo) }
+    val canSendFile = remember { ShareApp.canSendFile(context) }
+    var preparing by remember { mutableStateOf(false) }
+    var showQr by remember { mutableStateOf(false) }
+    if (linkIntent == null && !canSendFile) return
+
+    if (showQr && downloadUrl != null) QrDialog(downloadUrl) { showQr = false }
+
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        SectionHeader("Share Tono", Modifier.padding(start = 4.dp))
+        Card(Modifier.fillMaxWidth()) {
+            Column {
+                if (canSendFile) {
+                    LinkRow(
+                        "Send the app",
+                        if (preparing) "Getting the app file ready…"
+                        else "Share the app file with Quick Share, Bluetooth or a chat app. Works offline.",
+                    ) {
+                        if (preparing) return@LinkRow
+                        preparing = true
+                        scope.launch {
+                            runCatching { ShareApp.fileIntent(context) }
+                                .onSuccess { context.startActivity(it) }
+                            preparing = false
+                        }
+                    }
+                }
+                if (canSendFile && linkIntent != null) Divider()
+                if (linkIntent != null) {
+                    LinkRow("Share download link", "Send a link to the latest version on GitHub.") {
+                        context.startActivity(linkIntent)
+                    }
+                }
+                if (downloadUrl != null) {
+                    Divider()
+                    LinkRow("Show QR code", "A friend scans it with their camera to get Tono.") { showQr = true }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QrDialog(url: String, onDismiss: () -> Unit) {
+    val c = Tono.colors
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Scan to get Tono") },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                QrImage(
+                    url, "QR code for the Tono download page",
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)),
+                )
+                Text(
+                    "Point the other phone’s camera at this code. It opens the download page for the latest version.",
+                    style = MaterialTheme.typography.bodySmall, color = c.muted,
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Done", color = c.accent) } },
+        containerColor = c.surface, titleContentColor = c.text, textContentColor = c.muted,
+    )
+}
+
