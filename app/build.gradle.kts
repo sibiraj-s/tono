@@ -6,12 +6,16 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
-// The release workflow passes the tag's version (-Ptono.version=0.1.0); local builds use the default.
-val appVersion = (findProperty("tono.version") as String?)?.removePrefix("v") ?: "0.1.0"
+// The version lives in package.json (bumped by Changesets); -Ptono.version=1.2.3 overrides it.
+val packageVersion = Regex("\"version\"\\s*:\\s*\"([^\"]+)\"")
+    .find(rootProject.file("package.json").readText())?.groupValues?.get(1)
+    ?: error("No \"version\" in package.json")
+val appVersion = ((findProperty("tono.version") as String?) ?: packageVersion).removePrefix("v")
 // 1.2.3 -> 10203, so every newer version installs over the last one.
 val appVersionCode = appVersion.split(".").map { part -> part.takeWhile(Char::isDigit).ifEmpty { "0" }.toInt() }
     .let { p -> (p + listOf(0, 0, 0)).take(3) }
     .let { (major, minor, patch) -> major * 10000 + minor * 100 + patch }
+    .coerceAtLeast(1) // 0.0.0 (before the first release) still needs a valid versionCode
 // In GitHub Actions this is the repo being built; locally it comes from gradle.properties.
 val updateRepo = System.getenv("GITHUB_REPOSITORY") ?: (findProperty("tono.updateRepo") as String?) ?: ""
 

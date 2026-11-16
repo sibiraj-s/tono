@@ -15,3 +15,6 @@
 # Release signing (keep a backup; needed to update the installed app)
 keystore.properties
 *.jks
+
+# Changesets tooling
+node_modules/

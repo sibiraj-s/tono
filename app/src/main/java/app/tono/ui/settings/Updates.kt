@@ -278,7 +278,7 @@ private fun Hint(text: String, error: Boolean = false) {
 private fun Long.sizeLabel(): String =
     if (this <= 0) "" else " · ${"%.0f".format(this / 1_048_576.0).let { if (it == "0") "<1" else it }} MB"
 
-/** GitHub's generated notes are Markdown; show them as plain lines. */
+/** Release notes (the Changesets changelog entry) are Markdown; show them as plain lines. */
 internal fun plainNotes(md: String): String =
     md.lines()
         .filterNot { it.startsWith("**Full Changelog**") || it.startsWith("<!--") }
@@ -286,6 +286,8 @@ internal fun plainNotes(md: String): String =
             line.trim()
                 .replace(Regex("^#+\\s*"), "")
                 .replace(Regex("^[*-]\\s+"), "• ")
+                // Changesets prefixes each entry with its commit: "- 1a2b3c4: Loop preview".
+                .replace(Regex("^• \\[?[0-9a-f]{7,40}]?(\\([^)]*\\))?:\\s*"), "• ")
                 .replace(Regex("\\s+by @\\S+ in https://\\S+$"), "")
                 .replace("**", "")
         }

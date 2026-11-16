@@ -1,54 +1,128 @@
-# Builds a signed release APK and publishes it as a GitHub Release.
-# Tono's "Check for updates" reads the latest release from this repo.
+# Releases are driven by Changesets (see .changeset/README.md):
 #
-# Release a version either way:
-#   git tag v0.1.0 && git push origin v0.1.0
-#   or Actions › Release APK › Run workflow, and type the version.
+#   1. Add a changeset with your change: `npx changeset`, then commit and push to master.
+#   2. This workflow opens (or updates) a "release: vX.Y.Z" pull request that bumps the version in
+#      package.json and writes CHANGELOG.md.
+#   3. Merging that pull request tags vX.Y.Z, creates the GitHub release with the changelog, then
+#      builds the signed APK and attaches it. Tono's "Check for updates" reads that release.
 #
-# Needs these repository secrets (scripts/set-release-secrets.sh sets them from your local key):
-#   KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD
-name: Release APK
+# Needs these repository secrets: KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD.
+# Also enable Settings › Actions › General › "Allow GitHub Actions to create and approve pull requests".
+name: Release
 
 on:
   push:
-    tags: ["v*"]
+    branches: [master]
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Version to release, like 0.1.0"
-        required: true
 
-permissions:
-  contents: write
+# Each job asks for only what it needs.
+permissions: {}
 
 concurrency:
-  group: release
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
-  release:
+  select-mode:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      mode: ${{ steps.select-mode.outputs.mode }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # tags tell Changesets what's already released
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - run: npm ci
+
+      - name: Select Changesets mode
+        id: select-mode
+        uses: changesets/action/select-mode@v2.1.2
+
+  version:
+    needs: select-mode
+    if: needs.select-mode.outputs.mode == 'version'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # commit the version bump
+      pull-requests: write # open the Version Packages pull request
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - run: npm ci
+
+      # The version the pending changesets bump to, for the pull request's title.
+      - name: Work out the next version
+        id: next
+        run: |
+          npx changeset status --output="$RUNNER_TEMP/status.json"
+          echo "version=$(node -p "require('$RUNNER_TEMP/status.json').releases[0]?.newVersion ?? ''")" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update the release pull request
+        uses: changesets/action/version@v2.1.2
+        with:
+          commit-message: "release: v${{ steps.next.outputs.version }}"
+          pr-title: "release: v${{ steps.next.outputs.version }}"
+
+  publish:
+    needs: select-mode
+    if: needs.select-mode.outputs.mode == 'publish'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the tag and the GitHub release
+    outputs:
+      published: ${{ steps.publish.outputs.published }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - run: npm ci
+
+      - name: Tag and create the GitHub release
+        id: publish
+        uses: changesets/action/publish@v2.1.2
+        with:
+          create-github-releases: true
+
+  apk:
+    needs: publish
+    if: needs.publish.outputs.published == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write # upload the APK to the release
     steps:
       - uses: actions/checkout@v7
 
-      - name: Work out the version
+      - name: Read the version
         id: version
-        env:
-          INPUT_VERSION: ${{ inputs.version }}
-        run: |
-          if [ "$GITHUB_EVENT_NAME" = "push" ]; then v="${GITHUB_REF_NAME#v}"; else v="${INPUT_VERSION#v}"; fi
-          if ! printf '%s' "$v" | grep -Eq '^[0-9]+\.[0-9]{1,2}\.[0-9]{1,2}$'; then
-            echo "::error::Version must look like 1.2.3 (minor and patch up to 99), got '$v'"
-            exit 1
-          fi
-          echo "version=$v" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 25 # matches gradle/gradle-daemon-jvm.properties
-          cache: gradle # caches Gradle dependencies and the wrapper between runs
+          cache: gradle
 
       - uses: android-actions/setup-android@v4
 
@@ -63,7 +137,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
-            echo "::error::Signing secrets are missing. Run scripts/set-release-secrets.sh to add them."
+            echo "::error::Signing secrets are missing (KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD)."
             exit 1
           fi
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > tono-release.jks
@@ -75,27 +149,24 @@ jobs:
           } > keystore.properties
 
       - name: Test and build
-        run: ./gradlew :app:testDebugUnitTest :app:assembleRelease -Ptono.version=${{ steps.version.outputs.version }}
+        run: ./gradlew :app:testDebugUnitTest :app:assembleRelease
 
       - name: Check the APK is signed with the release key
+        env:
+          V: ${{ steps.version.outputs.version }}
         run: |
           apk=app/build/outputs/apk/release/app-release.apk
           test -f "$apk" || { echo "::error::No signed APK was built"; exit 1; }
           # Capture first: piping into grep -m1 can kill apksigner mid-write and fail the step under pipefail.
           certs=$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk")
           printf '%s\n' "$certs" | grep "certificate SHA-256"
-          cp "$apk" "tono-${{ steps.version.outputs.version }}.apk"
+          cp "$apk" "tono-$V.apk"
 
-      - name: Publish the release
+      - name: Attach the APK to the release
         env:
           GH_TOKEN: ${{ github.token }}
           V: ${{ steps.version.outputs.version }}
-        run: |
-          if gh release view "v$V" > /dev/null 2>&1; then
-            gh release upload "v$V" "tono-$V.apk" --clobber
-          else
-            gh release create "v$V" "tono-$V.apk" --title "Tono $V" --generate-notes --target "$GITHUB_SHA"
-          fi
+        run: gh release upload "v$V" "tono-$V.apk" --clobber
 
       - name: Remove the signing key
         if: always()
