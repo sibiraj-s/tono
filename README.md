@@ -8,6 +8,16 @@ and set it as your ringtone, notification sound or alarm.
 > It's shared as is: I'm not planning to maintain it for others, and I won't be accepting issues
 > or pull requests. You're welcome to fork it.
 
+| Search | Trim | Save | My tones | Call preview |
+| --- | --- | --- | --- | --- |
+| ![Search results](docs/screenshots/search.jpg) | ![Trimming a clip](docs/screenshots/trim.jpg) | ![Saving as ringtone, notification, alarm or contact](docs/screenshots/save.jpg) | ![My tones](docs/screenshots/tones.jpg) | ![Hearing a tone as a pretend incoming call](docs/screenshots/call.jpg) |
+
+## Download
+
+Feel free to use the app: grab the APK from the [latest release](https://github.com/sibiraj-s/tono/releases/latest)
+and open it on your phone (Android 10 or newer). Android will ask you to allow installing apps from
+your browser or file manager.
+
 ## Stack
 
 | Piece | Used for |
@@ -22,41 +32,9 @@ and set it as your ringtone, notification sound or alarm.
 | WorkManager | Ringtone rotation |
 | GitHub Releases API + FileProvider | In-app update check and install |
 
-Build: AGP 9.5 (built-in Kotlin), Gradle 9.6 (wrapper), compileSdk 37, minSdk 29 (Android 10+).
+## Build it yourself
 
-## Setup
+Open the project in Android Studio (with *Android SDK Platform 37* installed), or run
+`./gradlew installDebug` with a phone connected. `./gradlew test` runs the unit tests.
 
-1. Install Android Studio (bundles the JDK and SDK): `brew install --cask android-studio`
-2. Open it once, finish the setup wizard, and in **SDK Manager** install
-   *Android SDK Platform 37* and *Build-Tools 36.0.0*.
-3. Open this folder in Android Studio (or create `local.properties` with
-   `sdk.dir=/Users/<you>/Library/Android/sdk`).
-
-## Run on your phone
-
-1. On the phone: **Settings › About phone**, tap **Build number** 7 times, then
-   **Developer options › USB debugging** on. Plug in and tap **Allow**.
-2. `./gradlew installDebug`
-3. `adb shell am start -n app.tono/.MainActivity`
-
-Logs: `adb logcat --pid=$(adb shell pidof app.tono)`
-
-## Tests
-
-`./gradlew test` runs the JVM unit tests (filter rules, chorus detection, leveling, fades,
-rotation order, version comparison).
-
-## Release build
-
-`./gradlew :app:assembleRelease` signs with the key in `tono-release.jks`, using the passwords in
-`keystore.properties`. Neither file is committed. Back both up: Android only installs updates
-signed with the same key, so losing them means uninstalling (and losing app data) to update.
-Output: `app/build/outputs/apk/release/app-release.apk`.
-
-## In-app updates
-
-**Settings › Updates** checks the latest GitHub release (also once a day when the app opens; can be
-turned off). If it's newer, Tono shows the notes, downloads the APK, checks its SHA-256 and that it's
-Tono signed with the same key, then opens Android's installer. The first time, Android asks to allow
-"Install unknown apps" for Tono; Play Protect may also ask to scan an app it hasn't seen
-(**More details › Install without scanning** skips that).
+Use it for personal tones from music you have the right to use.
