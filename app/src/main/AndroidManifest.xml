@@ -14,6 +14,15 @@
     <!-- In-app updates: hand a downloaded release APK to the system installer. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- Only to open Samsung Clock's alarm list (it asks callers for this; a normal permission, no
+         prompt). Tono never creates or changes alarms. -->
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+
+    <!-- Lets Tono see whether Samsung Clock is installed, to explain how alarm sounds work there. -->
+    <queries>
+        <package android:name="com.sec.android.app.clockpackage" />
+    </queries>
+
     <application
         android:name=".TonoApp"
         android:allowBackup="true"

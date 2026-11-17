@@ -52,6 +52,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.tono.R
+import app.tono.audio.ClockApp
 import app.tono.container
 import app.tono.data.ToneUse
 import app.tono.data.formatMs
@@ -317,6 +318,13 @@ private fun UseOption(icon: Int, label: String, hint: String, selected: Boolean,
 @Composable
 private fun DoneScreen(ui: EditorUi, done: SaveState.Done, onDone: () -> Unit, onMyTones: () -> Unit) {
     val c = Tono.colors
+    val context = LocalContext.current
+    val clock = context.container.clock
+    val alarm = done.use == ToneUse.Alarm && done.contactName == null
+    // Samsung Clock ignores the default alarm sound: the tone has to be picked on each alarm.
+    val samsungClock = remember(alarm) { alarm && clock.isSamsungClock() }
+    val alarmHint = if (alarm) ClockApp.alarmHint(ui.name, done.setAsDefault, samsungClock) else null
+    var clockFailed by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
         Box(Modifier.size(64.dp).clip(CircleShape).background(c.accentSoft), contentAlignment = Alignment.Center) {
             TonoIcon(R.drawable.ic_check, tint = c.accent, size = 30.dp)
@@ -325,6 +333,8 @@ private fun DoneScreen(ui: EditorUi, done: SaveState.Done, onDone: () -> Unit, o
         Text(
             when {
                 done.contactName != null -> "Set for ${done.contactName}"
+                samsungClock -> "Tone saved"
+                alarm && done.setAsDefault -> "It’s your alarm sound now"
                 done.setAsDefault -> "It’s your ${done.use.label.lowercase()} now"
                 else -> "Tone saved"
             },
@@ -334,6 +344,8 @@ private fun DoneScreen(ui: EditorUi, done: SaveState.Done, onDone: () -> Unit, o
         Text(
             if (done.contactName != null) {
                 "“${ui.name}” will play when ${done.contactName} calls. Everyone else keeps your usual ringtone."
+            } else if (alarmHint != null) {
+                alarmHint
             } else if (done.setAsDefault) {
                 "“${ui.name}” will play for ${done.use.hint.lowercase()}."
             } else {
@@ -341,17 +353,33 @@ private fun DoneScreen(ui: EditorUi, done: SaveState.Done, onDone: () -> Unit, o
             },
             style = MaterialTheme.typography.bodyMedium, color = c.muted,
         )
+        if (clockFailed) {
+            Spacer(Modifier.height(16.dp))
+            Text("Couldn’t open Clock. Open it from your home screen.", style = MaterialTheme.typography.bodySmall, color = c.danger)
+        }
         Spacer(Modifier.height(32.dp))
-        PrimaryButton("Make another", onDone, Modifier.fillMaxWidth())
+        if (samsungClock) {
+            PrimaryButton("Open Clock", { clockFailed = !clock.openSamsungAlarms(context) }, Modifier.fillMaxWidth())
+            Spacer(Modifier.height(12.dp))
+            OutlineButton("Make another", onDone)
+        } else {
+            PrimaryButton("Make another", onDone, Modifier.fillMaxWidth())
+        }
         Spacer(Modifier.height(12.dp))
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .clip(Radius18)
-                .border(1.dp, c.line, Radius18)
-                .clickable(role = Role.Button, onClick = onMyTones),
-            contentAlignment = Alignment.Center,
-        ) { Text("Go to My tones", style = MaterialTheme.typography.labelLarge) }
+        OutlineButton("Go to My tones", onMyTones)
     }
+}
+
+@Composable
+private fun OutlineButton(text: String, onClick: () -> Unit) {
+    val c = Tono.colors
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .clip(Radius18)
+            .border(1.dp, c.line, Radius18)
+            .clickable(role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { Text(text, style = MaterialTheme.typography.labelLarge) }
 }

@@ -71,6 +71,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import app.tono.R
+import app.tono.audio.ClockApp
 import app.tono.audio.ContactTone
 import app.tono.audio.SavedTone
 import app.tono.audio.ToneStore
@@ -120,6 +121,7 @@ data class TonesUi(
 
 class MyTonesViewModel(app: Application) : AndroidViewModel(app) {
     private val store = app.container.toneStore
+    private val clock = app.container.clock
     private val youTube = app.container.youTube
     private val prefs = app.container.prefs
     private val _ui = MutableStateFlow(TonesUi())
@@ -220,7 +222,10 @@ class MyTonesViewModel(app: Application) : AndroidViewModel(app) {
         }
         viewModelScope.launch {
             runCatching { store.setAsDefault(t.uri, use) }
-                .onSuccess { say("“${t.title}” is your ${use.label.lowercase()} now.") }
+                .onSuccess {
+                    val alarmHint = if (use == ToneUse.Alarm) ClockApp.alarmHint(t.title, isDefault = true, clock.isSamsungClock()) else null
+                    say(alarmHint ?: "“${t.title}” is your ${use.label.lowercase()} now.")
+                }
                 .onFailure { e -> say(e.userMessage()) }
             refresh()
         }

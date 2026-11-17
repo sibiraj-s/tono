@@ -2,6 +2,7 @@ package app.tono
 
 import android.app.Application
 import android.content.Context
+import app.tono.audio.ClockApp
 import app.tono.audio.LocalAudio
 import app.tono.audio.ToneExporter
 import app.tono.audio.ToneStore
@@ -28,6 +29,7 @@ class AppContainer(context: Context) {
     val localAudio = LocalAudio(context, context.cacheDir)
     val exporter = ToneExporter(context)
     val toneStore = ToneStore(context)
+    val clock = ClockApp(context)
     val updates = UpdateRepository(context, http)
 }
 
