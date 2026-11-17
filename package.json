@@ -1,7 +1,7 @@
 {
   "name": "tono",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Version and changelog for the Tono Android app, managed with Changesets.",
   "scripts": {
     "changeset": "changeset"
